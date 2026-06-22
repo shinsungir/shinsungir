@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>신성대학교 공시 종합 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:#eef0f5;font-size:14px;color:#1f2937;}
+
+/* ══ 헤더 ══ */
+.db-header{background:#1a2744;color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;}
+.db-logo{width:38px;height:38px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;}
+.db-title{font-size:19px;font-weight:600;}
+.db-tabs{display:flex;gap:4px;}
+.db-tab{padding:8px 16px;border-radius:6px;font-size:14px;color:rgba(255,255,255,0.65);cursor:pointer;border:none;background:none;font-family:inherit;}
+.db-tab.active{background:rgba(255,255,255,0.18);color:#fff;font-weight:600;}
+.db-year{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.35);color:#fff;font-size:14px;padding:6px 14px;border-radius:6px;cursor:pointer;font-family:inherit;}
+.db-year option{color:#1a2744;background:#fff;}
+
+/* ══ 안내 메모 - 접기/펼치기 ══ */
+.notice-bar{background:#fff7e6;border-bottom:1px solid #f0d896;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+.notice-bar:hover{background:#fdf0d5;}
+.notice-bar-left{display:flex;align-items:center;gap:8px;font-size:13px;color:#92660a;font-weight:600;}
+.notice-toggle-icon{font-size:13px;color:#92660a;transition:transform 0.2s;}
+.notice-toggle-icon.open{transform:rotate(180deg);}
+.notice-content{display:none;background:#fffbf0;border-bottom:1px solid #f0d896;padding:18px 24px;font-size:13px;line-height:1.9;color:#5c4a13;}
+.notice-content.open{display:block;}
+.notice-content h4{font-size:13px;font-weight:700;margin:10px 0 4px;color:#3d3209;}
+.notice-content h4:first-child{margin-top:0;}
+.notice-content code{background:#f5e8c4;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:12px;}
+.notice-content ol,.notice-content ul{margin-left:20px;margin-top:4px;}
+
+/* ══ 데이터 출처 안내 (작게) ══ */
+.source-bar{background:#162340;color:rgba(255,255,255,0.55);font-size:12px;padding:6px 24px;display:flex;align-items:center;gap:10px;}
+.source-dot{width:8px;height:8px;border-radius:50%;background:#34d399;flex-shrink:0;}
+
+/* ══ KPI 카드 - 여백, 둥근 모서리 ══ */
+.kpi-grid{display:grid;gap:18px;background:#eef0f5;padding:20px 24px 0;}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g5{grid-template-columns:repeat(5,1fr);}
+.kpi-card{padding:20px 22px;display:flex;justify-content:space-between;align-items:flex-start;border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,0.08);}
+.kc1{background:#1e3a6e;}.kc2{background:#1e3a6e;}
+.kc3{background:#0d4a3a;}.kc4{background:#0d4a3a;}
+.kc5{background:#3b1f6e;}.kc6{background:#3b1f6e;}
+.kpi-label{font-size:13.5px;color:rgba(255,255,255,0.78);margin-bottom:10px;line-height:1.45;font-weight:600;}
+.kpi-value{font-size:32px;font-weight:700;color:#fff;line-height:1;}
+.kpi-value.sm{font-size:24px;}
+.kpi-value.na{font-size:18px;color:rgba(255,255,255,0.45);font-weight:500;}
+.kpi-change{font-size:13px;margin-top:10px;font-weight:600;}
+.up{color:#6ee7b7;}.down{color:#fca5a5;}.neu{color:#94a3b8;}
+.kpi-icon{font-size:30px;color:rgba(255,255,255,0.22);}
+
+/* ══ 섹션 ══ */
+.sec-label{background:#162340;color:rgba(255,255,255,0.6);font-size:12px;font-weight:700;padding:8px 24px;letter-spacing:.5px;}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;background:#eef0f5;padding:18px 24px 0;}
+.sc{background:#fff;padding:18px 20px;border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,0.08);}
+.sc-title{font-size:15px;font-weight:700;color:#1f2937;margin-bottom:10px;}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;}
+.lg{display:flex;align-items:center;gap:5px;font-size:12.5px;color:#4b5563;font-weight:500;}
+.ls{width:11px;height:11px;border-radius:3px;flex-shrink:0;}
+.cw{position:relative;width:100%;height:200px;}
+
+/* ══ 비교 카드(경쟁대학) ══ */
+.cmp-grid{display:grid;gap:18px;background:#eef0f5;padding:18px 24px 0;}
+.cmp-card{background:#fff;padding:16px 18px;border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,0.08);}
+.cc-label{font-size:13px;color:#4b5563;margin-bottom:10px;min-height:34px;line-height:1.45;font-weight:600;}
+.cc-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.cc-name{font-size:11.5px;color:#9ca3af;width:32px;flex-shrink:0;font-weight:600;}
+.cc-bar-wrap{flex:1;background:#f0f2f7;border-radius:4px;height:14px;overflow:hidden;}
+.cc-bar{height:14px;border-radius:4px;}
+.bar-ours{background:#2563eb;}.bar-avg{background:#cbd5e1;}
+.cc-val{font-size:13px;font-weight:700;min-width:50px;text-align:right;}
+.val-ours{color:#1a3fa0;}.val-avg{color:#6b7280;}
+.diff-line{font-size:11.5px;margin-top:6px;font-weight:600;}
+
+/* ══ 테이블 ══ */
+.tbl-sec{background:#fff;padding:18px 20px;margin:0 24px 20px;border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,0.08);}
+.tbl-title{font-size:15px;font-weight:700;color:#1f2937;margin-bottom:12px;}
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed;}
+th{background:#eef1f8;color:#374151;padding:10px 8px;text-align:center;font-weight:700;font-size:12.5px;border-bottom:2px solid #d1d8e8;}
+td{padding:8px 8px;text-align:center;border-bottom:1px solid #eef0f5;color:#374151;}
+.hi{font-weight:700;color:#1a5fc8;background:#f0f5ff;}
+.na-cell{color:#c1c7d2;font-style:italic;}
+
+/* ══ 탭 패널 ══ */
+.panel{display:none;}.panel.active{display:block;padding-bottom:20px;}
+.sub-tabs{display:flex;background:#f3f5f9;border-bottom:2px solid #dde2ee;padding:0 24px;}
+.sub-tab{padding:11px 22px;font-size:14px;color:#6b7280;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;font-weight:600;background:none;border-left:none;border-right:none;border-top:none;font-family:inherit;}
+.sub-tab.active{color:#1a3fa0;border-bottom-color:#1a3fa0;}
+.sub-panel{display:none;}.sub-panel.active{display:block;}
+
+#loadingOverlay{position:fixed;inset:0;background:rgba(26,39,68,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;color:#fff;gap:14px;}
+.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.footer-note{padding:14px 24px;font-size:12px;color:#9ca3af;text-align:center;}
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spin"></div>
+  <p style="font-size:14px;color:rgba(255,255,255,.8);">데이터를 불러오는 중...</p>
+</div>
+
+<!-- ══ 헤더 ══ -->
+<div class="db-header">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="db-logo">🏫</div>
+    <span class="db-title">신성대학교 공시 종합 대시보드</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="db-tabs">
+      <button class="db-tab active" onclick="switchTab('종합',this)">종합</button>
+      <button class="db-tab" onclick="switchTab('학생',this)">학생</button>
+      <button class="db-tab" onclick="switchTab('교원',this)">교원</button>
+      <button class="db-tab" onclick="switchTab('연구',this)">연구</button>
+      <button class="db-tab" onclick="switchTab('재정',this)">재정</button>
+      <button class="db-tab" onclick="switchTab('경쟁',this)">경쟁대학 비교</button>
+    </div>
+    <select class="db-year" id="yearSelect" onchange="onYearChange(this.value)">
+      <option value="">연도 —</option>
+    </select>
+  </div>
+</div>
+
+<!-- ══ Power BI 연동 안내 — 접기/펼치기 (기본 접힘) ══ -->
+<div class="notice-bar" onclick="toggleNotice()">
+  <div class="notice-bar-left">
+    <span>📋</span>
+    <span>관리자용 안내 — 구글 시트 연동 및 Power BI 활용 방법 (클릭하여 펼치기)</span>
+  </div>
+  <span class="notice-toggle-icon" id="noticeIcon">▼</span>
+</div>
+<div class="notice-content" id="noticeContent">
+  <h4>① 구글 시트 연동 설정</h4>
+  대시보드 하단 소스 코드 상단의 <code>SHEET_ID</code> 값을 본인의 구글 시트 ID로 교체하면, 시트 데이터를 새로고침할 때마다 자동으로 반영됩니다. 현재는 검증된 실제 공시자료 기준 데모 데이터로 표시되고 있습니다.
+
+  <h4>② Power BI에 연동하는 방법</h4>
+  <ol>
+    <li>이 HTML 파일을 사내 웹서버 또는 GitHub Pages 등에 업로드해 URL을 만듭니다.</li>
+    <li>Power BI Desktop에서 시각화 패널 → "HTML Content" 사용자 지정 비주얼을 추가합니다.</li>
+    <li>측정값으로 위 URL을 만들어 비주얼의 "값" 필드에 연결하면 보고서 안에 이 대시보드가 그대로 표시됩니다.</li>
+  </ol>
+
+  <h4>③ 조직원에게 공유할 때 — 이 안내문 숨기는 법</h4>
+  지금처럼 안내 박스를 <b>접어두면</b> 조직원이 볼 때는 제목 줄만 보이고, 필요한 사람만 클릭해서 펼쳐볼 수 있습니다. 완전히 숨기고 싶으면 코드에서 <code>.notice-bar</code> 영역 전체를 삭제하거나 <code>style="display:none"</code>을 추가하면 됩니다.
+
+  <h4>④ 데이터 출처 및 주의사항</h4>
+  본 대시보드의 수치는 TB_공시자료.xlsx 원본을 기준으로 검증되었습니다. 일부 항목(2021년 학생·교원 지표, 2025년 취업률·연구실적·재정 지표 등)은 원본 공시자료 자체에 값이 없어 "—"로 표시됩니다. 경쟁대학 평균은 신성대학교를 제외한 14개교 기준이며, 일부 항목은 원본 시트의 누락으로 12~13개교 평균일 수 있습니다(해당 항목에 각주로 표시).
+</div>
+
+<!-- ══ 데이터 출처 상태바 ══ -->
+<div class="source-bar">
+  <div class="source-dot"></div>
+  <span id="statusText">TB_공시자료.xlsx 검증 데이터 적용됨</span>
+  <span style="margin-left:auto;" id="lastUpdate"></span>
+</div>
+
+<!-- ══ 종합 탭 ══ -->
+<div id="panel-종합" class="panel active">
+  <div class="kpi-grid g4">
+    <div class="kpi-card kc1"><div><div class="kpi-label">재학생 수<br>(상반기, 정원내)</div><div class="kpi-value" id="k-재학생수">—</div><div class="kpi-change" id="k-재학생수-c">—</div></div><span class="kpi-icon">👥</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">신입생충원율</div><div class="kpi-value" id="k-신입생충원율">—</div><div class="kpi-change" id="k-신입생충원율-c">—</div></div><span class="kpi-icon">🎯</span></div>
+    <div class="kpi-card kc1"><div><div class="kpi-label">졸업생 취업률</div><div class="kpi-value" id="k-취업률">—</div><div class="kpi-change" id="k-취업률-c">—</div></div><span class="kpi-icon">💼</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">전임교원 확보율<br>(재학생 기준)</div><div class="kpi-value" id="k-교원확보율">—</div><div class="kpi-change" id="k-교원확보율-c">—</div></div><span class="kpi-icon">✅</span></div>
+  </div>
+  <div class="kpi-grid g4">
+    <div class="kpi-card kc2"><div><div class="kpi-label">전임교원 1인당 학생 수<br>(재학생 기준)</div><div class="kpi-value sm" id="k-1인당학생수">—</div><div class="kpi-change" id="k-1인당학생수-c">—</div></div><span class="kpi-icon">👤</span></div>
+    <div class="kpi-card kc1"><div><div class="kpi-label">전임교원 1인당<br>국내논문 실적</div><div class="kpi-value sm" id="k-국내논문">—</div><div class="kpi-change" id="k-국내논문-c">—</div></div><span class="kpi-icon">📄</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">전임교원 1인당<br>국제논문 실적</div><div class="kpi-value sm" id="k-국제논문">—</div><div class="kpi-change" id="k-국제논문-c">—</div></div><span class="kpi-icon">🌐</span></div>
+    <div class="kpi-card kc1"><div><div class="kpi-label">전임교원 1인당<br>저·역서 실적</div><div class="kpi-value sm" id="k-저역서">—</div><div class="kpi-change" id="k-저역서-c">—</div></div><span class="kpi-icon">📚</span></div>
+  </div>
+  <div class="chart-grid">
+    <div class="sc"><div class="sc-title">학생 성과 추이</div><div class="legend"><div class="lg"><div class="ls" style="background:#93c5fd;"></div>재학생수(명)</div><div class="lg"><div class="ls" style="background:#2563eb;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>신입생충원율(%)</div></div><div class="cw"><canvas id="c-학생추이"></canvas></div></div>
+    <div class="sc"><div class="sc-title">교원·연구 추이</div><div class="legend"><div class="lg"><div class="ls" style="background:#93c5fd;"></div>전임교원수</div><div class="lg"><div class="ls" style="background:#10b981;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>국내논문</div><div class="lg"><div class="ls" style="background:#f59e0b;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>국제논문</div></div><div class="cw"><canvas id="c-교원추이"></canvas></div></div>
+  </div>
+  <div class="tbl-sec"><div class="tbl-title">연도별 주요 지표 요약</div>
+    <table><thead><tr><th style="width:9%">구분</th><th>재학생수(명)</th><th>신입생충원율(%)</th><th>취업률(%)</th><th>교원확보율(%)</th><th>1인당학생수(명)</th><th>국내논문(건)</th><th>국제논문(건)</th><th>저역서(건)</th></tr></thead>
+    <tbody id="tb-종합"></tbody></table>
+  </div>
+</div>
+
+<!-- ══ 학생 탭 ══ -->
+<div id="panel-학생" class="panel">
+  <div class="kpi-grid g4">
+    <div class="kpi-card kc1"><div><div class="kpi-label">신입생충원율</div><div class="kpi-value" id="s-신입생충원율">—</div><div class="kpi-change" id="s-신입생충원율-c">—</div></div><span class="kpi-icon">🎯</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">재학생충원율<br>(상반기)</div><div class="kpi-value" id="s-재학생충원율">—</div><div class="kpi-change" id="s-재학생충원율-c">—</div></div><span class="kpi-icon">👥</span></div>
+    <div class="kpi-card kc1"><div><div class="kpi-label">중도탈락률</div><div class="kpi-value" id="s-중도탈락">—</div><div class="kpi-change" id="s-중도탈락-c">—</div></div><span class="kpi-icon">🚪</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">신입생 중도탈락률</div><div class="kpi-value" id="s-신입생중도탈락">—</div><div class="kpi-change" id="s-신입생중도탈락-c">—</div></div><span class="kpi-icon">🚶</span></div>
+  </div>
+  <div class="kpi-grid g4">
+    <div class="kpi-card kc1"><div><div class="kpi-label">외국인 유학생 수</div><div class="kpi-value" id="s-유학생수">—</div><div class="kpi-change" id="s-유학생수-c">—</div></div><span class="kpi-icon">🌍</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">졸업생 취업률</div><div class="kpi-value" id="s-취업률">—</div><div class="kpi-change" id="s-취업률-c">—</div></div><span class="kpi-icon">💼</span></div>
+    <div class="kpi-card kc1"><div><div class="kpi-label">졸업생 유지취업률<br>(4차)</div><div class="kpi-value" id="s-유지취업률">—</div><div class="kpi-change" id="s-유지취업률-c">—</div></div><span class="kpi-icon">📌</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">재학생 수<br>(상반기, 정원내)</div><div class="kpi-value sm" id="s-재학생수">—</div><div class="kpi-change" id="s-재학생수-c">—</div></div><span class="kpi-icon">🏫</span></div>
+  </div>
+  <div class="chart-grid">
+    <div class="sc"><div class="sc-title">충원율 추이</div><div class="legend"><div class="lg"><div class="ls" style="background:#93c5fd;"></div>신입생충원율(%)</div><div class="lg"><div class="ls" style="background:#2563eb;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>재학생충원율(%)</div></div><div class="cw"><canvas id="c-충원율추이"></canvas></div></div>
+    <div class="sc"><div class="sc-title">취업률 추이</div><div class="legend"><div class="lg"><div class="ls" style="background:#6ee7b7;"></div>졸업생취업률(%)</div><div class="lg"><div class="ls" style="background:#059669;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>유지취업률(%)</div></div><div class="cw"><canvas id="c-취업률추이"></canvas></div></div>
+    <div class="sc"><div class="sc-title">중도탈락률 추이</div><div class="legend"><div class="lg"><div class="ls" style="background:#fca5a5;"></div>전체(%)</div><div class="lg"><div class="ls" style="background:#dc2626;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>신입생(%)</div></div><div class="cw"><canvas id="c-중도탈락추이"></canvas></div></div>
+    <div class="sc"><div class="sc-title">외국인 유학생 수 추이</div><div class="legend"><div class="lg"><div class="ls" style="background:#c4b5fd;"></div>유학생수(명)</div></div><div class="cw"><canvas id="c-유학생추이"></canvas></div></div>
+  </div>
+  <div class="tbl-sec"><div class="tbl-title">연도별 학생 지표 요약</div>
+    <table><thead><tr><th>구분</th><th>신입생충원율(%)</th><th>재학생충원율(%)</th><th>재학생수(명)</th><th>중도탈락률(%)</th><th>신입생탈락률(%)</th><th>유학생수(명)</th><th>취업률(%)</th><th>유지취업률(%)</th></tr></thead>
+    <tbody id="tb-학생"></tbody></table>
+  </div>
+</div>
+
+<!-- ══ 교원 탭 ══ -->
+<div id="panel-교원" class="panel">
+  <div class="kpi-grid g4">
+    <div class="kpi-card kc1"><div><div class="kpi-label">전임교원 확보율<br>(재학생 기준)</div><div class="kpi-value" id="f-확보율재학">—</div><div class="kpi-change" id="f-확보율재학-c">—</div></div><span class="kpi-icon">✅</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">전임교원 확보율<br>(학생정원 기준)</div><div class="kpi-value" id="f-확보율정원">—</div><div class="kpi-change" id="f-확보율정원-c">—</div></div><span class="kpi-icon">📐</span></div>
+    <div class="kpi-card kc1"><div><div class="kpi-label">전임교원 1인당 학생수<br>(재학생 기준)</div><div class="kpi-value sm" id="f-1인당학생">—</div><div class="kpi-change" id="f-1인당학생-c">—</div></div><span class="kpi-icon">👤</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">전임교원 수<br>(재학생 기준)</div><div class="kpi-value" id="f-교원수">—</div><div class="kpi-change" id="f-교원수-c">—</div></div><span class="kpi-icon">👨‍🏫</span></div>
+  </div>
+  <div class="chart-grid">
+    <div class="sc"><div class="sc-title">전임교원 확보율 추이</div><div class="legend"><div class="lg"><div class="ls" style="background:#93c5fd;"></div>재학생기준(%)</div><div class="lg"><div class="ls" style="background:#2563eb;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>학생정원기준(%)</div></div><div class="cw"><canvas id="c-교원확보율추이"></canvas></div></div>
+    <div class="sc"><div class="sc-title">전임교원 수·1인당 학생수 추이</div><div class="legend"><div class="lg"><div class="ls" style="background:#c4b5fd;"></div>전임교원수(명)</div><div class="lg"><div class="ls" style="background:#7c3aed;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>1인당학생수(명)</div></div><div class="cw"><canvas id="c-교원수추이"></canvas></div></div>
+  </div>
+  <div class="tbl-sec"><div class="tbl-title">연도별 교원 지표 요약</div>
+    <table><thead><tr><th>구분</th><th>교원확보율-재학생(%)</th><th>교원확보율-정원(%)</th><th>전임교원수(명)</th><th>1인당학생수(명)</th></tr></thead>
+    <tbody id="tb-교원"></tbody></table>
+  </div>
+</div>
+
+<!-- ══ 연구 탭 ══ -->
+<div id="panel-연구" class="panel">
+  <div class="kpi-grid g4">
+    <div class="kpi-card kc1"><div><div class="kpi-label">국내논문<br>(전임1인당)</div><div class="kpi-value sm" id="r-국내논문">—</div><div class="kpi-change" id="r-국내논문-c">—</div></div><span class="kpi-icon">📄</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">국제논문<br>(전임1인당)</div><div class="kpi-value sm" id="r-국제논문">—</div><div class="kpi-change" id="r-국제논문-c">—</div></div><span class="kpi-icon">🌐</span></div>
+    <div class="kpi-card kc1"><div><div class="kpi-label">저·역서<br>(전임1인당)</div><div class="kpi-value sm" id="r-저역서">—</div><div class="kpi-change" id="r-저역서-c">—</div></div><span class="kpi-icon">📚</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">캡스톤디자인<br>운영지원금</div><div class="kpi-value sm" id="r-캡스톤">—</div><div class="kpi-change" id="r-캡스톤-c">—</div></div><span class="kpi-icon">🛠</span></div>
+  </div>
+  <div class="kpi-grid g4">
+    <div class="kpi-card kc1"><div><div class="kpi-label">전임교원 1인당<br>연구비(교내, 천원)</div><div class="kpi-value sm" id="r-교내연구비">—</div><div class="kpi-change" id="r-교내연구비-c">—</div></div><span class="kpi-icon">🏛</span></div>
+    <div class="kpi-card kc2"><div><div class="kpi-label">전임교원 1인당<br>연구비(교외, 천원)</div><div class="kpi-value sm" id="r-교외연구비">—</div><div class="kpi-change" id="r-교외연구비-c">—</div></div><span class="kpi-icon">🪙</span></div>
+  </div>
+  <div class="chart-grid">
+    <div class="sc"><div class="sc-title">전임교원 1인당 논문·저역서 실적 추이</div><div class="legend"><div class="lg"><div class="ls" style="background:#93c5fd;"></div>국내논문</div><div class="lg"><div class="ls" style="background:#2563eb;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>국제논문</div><div class="lg"><div class="ls" style="background:#10b981;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>저역서</div></div><div class="cw"><canvas id="c-논문추이"></canvas></div></div>
+    <div class="sc"><div class="sc-title">전임교원 1인당 연구비 추이 (천원)</div><div class="legend"><div class="lg"><div class="ls" style="background:#c4b5fd;"></div>교내연구비</div><div class="lg"><div class="ls" style="background:#7c3aed;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>교외연구비</div></div><div class="cw"><canvas id="c-연구비추이"></canvas></div></div>
+  </div>
+  <div class="tbl-sec"><div class="tbl-title">연도별 연구 지표 요약</div>
+    <table><thead><tr><th>구분</th><th>국내논문(건)</th><th>국제논문(건)</th><th>저역서(건)</th><th>교내연구비(천원)</th><th>교외연구비(천원)</th><th>캡스톤(원)</th></tr></thead>
+    <tbody id="tb-연구"></tbody></table>
+  </div>
+</div>
+
+<!-- ══ 재정 탭 ══ -->
+<div id="panel-재정" class="panel">
+  <div class="sub-tabs">
+    <button class="sub-tab active" onclick="switchSub('수입',this)">💹 수입</button>
+    <button class="sub-tab" onclick="switchSub('지출',this)">📉 지출</button>
+  </div>
+  <div id="sub-수입" class="sub-panel active">
+    <div class="kpi-grid g5">
+      <div class="kpi-card kc1"><div><div class="kpi-label">등록금수입</div><div class="kpi-value sm" id="fi-등록금">—</div><div class="kpi-change" id="fi-등록금-c">—</div></div><span class="kpi-icon">💵</span></div>
+      <div class="kpi-card kc2"><div><div class="kpi-label">전입금</div><div class="kpi-value sm" id="fi-전입금">—</div><div class="kpi-change" id="fi-전입금-c">—</div></div><span class="kpi-icon">↔️</span></div>
+      <div class="kpi-card kc1"><div><div class="kpi-label">기부금</div><div class="kpi-value sm" id="fi-기부금">—</div><div class="kpi-change" id="fi-기부금-c">—</div></div><span class="kpi-icon">❤️</span></div>
+      <div class="kpi-card kc2"><div><div class="kpi-label">국고보조금</div><div class="kpi-value sm" id="fi-국고">—</div><div class="kpi-change" id="fi-국고-c">—</div></div><span class="kpi-icon">🏛</span></div>
+      <div class="kpi-card kc1"><div><div class="kpi-label">교육외수입</div><div class="kpi-value sm" id="fi-교육외수입">—</div><div class="kpi-change" id="fi-교육외수입-c">—</div></div><span class="kpi-icon">📂</span></div>
+    </div>
+    <div class="chart-grid"><div class="sc" style="grid-column:1/3;"><div class="sc-title">수입 항목별 추이 (억원)</div><div class="legend"><div class="lg"><div class="ls" style="background:#93c5fd;"></div>등록금</div><div class="lg"><div class="ls" style="background:#2563eb;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>국고보조금</div></div><div class="cw"><canvas id="c-수입추이"></canvas></div></div></div>
+    <div class="tbl-sec"><div class="tbl-title">연도별 수입 지표 요약 (억원)</div>
+      <table><thead><tr><th>구분</th><th>등록금</th><th>전입금</th><th>기부금</th><th>국고보조금</th><th>교육외수입</th></tr></thead>
+      <tbody id="tb-수입"></tbody></table>
+    </div>
+  </div>
+  <div id="sub-지출" class="sub-panel">
+    <div class="kpi-grid g4">
+      <div class="kpi-card kc3"><div><div class="kpi-label">보수</div><div class="kpi-value sm" id="fe-보수">—</div><div class="kpi-change" id="fe-보수-c">—</div></div><span class="kpi-icon">💳</span></div>
+      <div class="kpi-card kc4"><div><div class="kpi-label">관리운영비</div><div class="kpi-value sm" id="fe-관리">—</div><div class="kpi-change" id="fe-관리-c">—</div></div><span class="kpi-icon">⚙️</span></div>
+      <div class="kpi-card kc3"><div><div class="kpi-label">연구학생경비</div><div class="kpi-value sm" id="fe-연구경비">—</div><div class="kpi-change" id="fe-연구경비-c">—</div></div><span class="kpi-icon">🔬</span></div>
+      <div class="kpi-card kc4"><div><div class="kpi-label">교육외비용</div><div class="kpi-value sm" id="fe-교육외비용">—</div><div class="kpi-change" id="fe-교육외비용-c">—</div></div><span class="kpi-icon">🧾</span></div>
+    </div>
+    <div class="chart-grid"><div class="sc" style="grid-column:1/3;"><div class="sc-title">지출 항목별 추이 (억원)</div><div class="legend"><div class="lg"><div class="ls" style="background:#6ee7b7;"></div>보수</div><div class="lg"><div class="ls" style="background:#059669;height:3px;border-radius:0;width:14px;margin-top:5px;"></div>연구학생경비</div></div><div class="cw"><canvas id="c-지출추이"></canvas></div></div></div>
+    <div class="tbl-sec"><div class="tbl-title">연도별 지출 지표 요약 (억원)</div>
+      <table><thead><tr><th>구분</th><th>보수</th><th>관리운영비</th><th>연구학생경비</th><th>교육외비용</th></tr></thead>
+      <tbody id="tb-지출"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 경쟁대학 비교 탭 ══ -->
+<div id="panel-경쟁" class="panel">
+  <div style="background:#f3f5f9;padding:10px 24px;border-bottom:2px solid #dde2ee;display:flex;align-items:center;gap:18px;font-size:13px;">
+    <div style="display:flex;align-items:center;gap:6px;font-weight:600;"><div style="width:28px;height:12px;border-radius:3px;background:#2563eb;"></div>신성대학교 (본교)</div>
+    <div style="display:flex;align-items:center;gap:6px;font-weight:600;"><div style="width:28px;height:12px;border-radius:3px;background:#cbd5e1;"></div>비교대학 평균</div>
+    <span style="color:#9ca3af;margin-left:auto;">비교대학: 신성대학교를 제외한 14개교 (일부 항목은 원본 자료 누락으로 12~13개교)</span>
+  </div>
+  <div class="cmp-grid" id="cmp-cards" style="grid-template-columns:repeat(3,1fr);"></div>
+  <div class="tbl-sec"><div class="tbl-title" id="cmp-tbl-title">경쟁대학 비교표</div>
+    <table><thead><tr><th style="text-align:left;width:30%">지표명</th><th>본교</th><th>비교대학 평균</th><th>차이</th><th>비교대학 수</th></tr></thead><tbody id="tb-cmp"></tbody></table>
+  </div>
+</div>
+
+<div class="footer-note">신성대학교 IR센터 · 데이터 출처: 대학알리미 공시자료(TB_공시자료.xlsx) · 본 대시보드의 모든 수치는 원본 공시자료와 대조 검증되었습니다</div>
+
+<script>
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  구글 시트 연동 설정 — 여기만 수정하면 됩니다                ║
+// ╚══════════════════════════════════════════════════════════════╝
+const SHEET_ID   = 'YOUR_GOOGLE_SHEET_ID';
+const SHEET_NAME = '신성대_공시';
+
+// ── 검증된 실제 데이터 (TB_공시자료.xlsx 원본 대조 완료) ──
+// null = 원본 공시자료 자체에 해당 연도 값이 없음 (추정치 사용 안 함)
+// ※ 기본 표시는 2023년부터. 단, 해당 탭의 최신 연도가 2025년 자료가 없으면
+//    2022년까지 포함해 3개년을 보여줌 (render() 로직에서 처리)
+const D = {
+  years: ['2022','2023','2024','2025'],
+  신입생충원율: [null, 80.4, 91.1, 93.7],
+  재학생충원율: [null, 74.0, 79.0, 82.2],
+  재학생수: [null, 2164, 2158, 2196],
+  졸업생취업률: [77.9, 74.0, 76.4, null],
+  유지취업률: [91.6, 92.7, 90.7, null],
+  교원확보율재학: [null, 73.48, 72.93, 66.67],
+  교원확보율정원: [null, 66.44, 71.32, 68.18],
+  전임교원수: [null, 97, 97, 90],
+  '1인당학생수': [null, 27.32, 27.44, 30.0],
+  국내논문: [0.0921, 0.124, 0.1861, null],
+  국제논문: [0.0275, 0.0356, 0.0487, null],
+  저역서: [0.0253, 0.0615, 0.0516, null],
+  중도탈락률: [9.77, 10.3, 9.4, null],
+  신입생중도탈락률: [9.07, 9.3, 8.4, null],
+  유학생수: [null, 85, 177, 305],
+  교내연구비: [0.0, 103.1, 0.0, null],
+  교외연구비: [1299.0, 774.6, 191.1, null],
+  캡스톤: [84886369, 53132000, 41415200, null],
+  등록금수입: [187.42, 173.16, 171.13, null],
+  전입금: [2.35, 5.3, 4.36, null],
+  기부금: [3.71, 3.36, 2.62, null],
+  국고보조금: [90.1, 102.78, 111.81, null],
+  교육외수입: [13.55, 15.34, 14.01, null],
+  보수: [172.46, 120.85, 118.53, null],
+  관리운영비: [53.35, 59.03, 66.76, null],
+  연구학생경비: [124.15, 113.2, 113.85, null],
+  교육외비용: [4.36, 34.42, 24.97, null],
+};
+
+// ── 경쟁대학 비교 데이터 (신성대 제외 14개교 평균, 최신 연도 기준) ──
+// 학교수 표기: 원본 시트에 자료가 없는 학교가 있을 경우 그 수만큼 줄어든 평균임을 명시
+// ── 경쟁대학 비교 데이터 (신성대 제외 14개교 평균, 연도별 시계열) ──
+// null = 원본 자료에 해당 연도 값이 없음. n = 평균에 포함된 비교대학 학교 수
+const CMP_YEARS = ['2022','2023','2024','2025'];
+const CMP = [
+  {label:'신입생충원율(%)',          sin:[null,80.4,91.1,93.7],         avg:[null,86.89,86.37,90.96], n:[null,14,14,14]},
+  {label:'재학생충원율 상반기(%)',     sin:[null,74.0,79.0,82.2],         avg:[null,78.34,81.04,81.44], n:[null,14,14,14]},
+  {label:'전임교원확보율-재학생(%)',   sin:[null,73.48,72.93,66.67],      avg:[null,66.64,64.70,60.81], n:[null,14,14,14]},
+  {label:'전임교원확보율-정원(%)',     sin:[null,66.44,71.32,68.18],      avg:[null,60.72,62.05,62.17], n:[null,14,14,14]},
+  {label:'전임교원1인당학생수(명)',    sin:[null,27.32,27.44,30.0],       avg:[null,30.96,32.10,34.25], n:[null,14,14,14], lo:true},
+  {label:'외국인유학생수(명)',        sin:[null,85,177,305],             avg:[null,301.4,297.1,494.9], n:[null,11,14,14]},
+  {label:'졸업생취업률(%)',           sin:[77.9,74.0,76.4,null],         avg:[73.95,74.05,73.74,null], n:[14,14,14,null]},
+  {label:'유지취업률(%)',             sin:[91.6,92.7,90.7,null],         avg:[88.71,88.94,89.11,null], n:[14,14,14,null]},
+  {label:'중도탈락률(%)',             sin:[9.77,10.3,9.4,null],          avg:[9.16,10.46,10.55,null],  n:[14,14,14,null], lo:true},
+  {label:'국내논문 1인당(건)',        sin:[0.0921,0.124,0.1861,null],    avg:[0.1935,0.2445,0.2169,null], n:[14,14,14,null]},
+  {label:'국제논문 1인당(건)',        sin:[0.0275,0.0356,0.0487,null],   avg:[0.0213,0.0188,0.0139,null], n:[14,14,14,null]},
+  {label:'저역서 1인당(건)',          sin:[0.0253,0.0615,0.0516,null],   avg:[0.0768,0.0761,0.0603,null], n:[14,14,14,null]},
+  {label:'캡스톤지원금(원)',          sin:[84886369,53132000,41415200,null], avg:[38226873,48015939,53167208,null], n:[14,14,13,null]},
+  {label:'등록금수입(억)',            sin:[187.42,173.16,171.13,null],   avg:[162.0,157.95,156.36,null], n:[12,12,12,null]},
+  {label:'보수(억)',                  sin:[172.46,120.85,118.53,null],   avg:[135.07,125.04,122.90,null], n:[12,12,12,null]},
+];
+
+// ── 유틸 ──
+const ch = {};
+function fmt(v){ if(v===null||v===undefined||Number.isNaN(v)) return '—'; return typeof v==='number'&&!Number.isInteger(v)?v.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:4}):typeof v==='number'?v.toLocaleString():v; }
+function lastValid(arr){ for(let i=arr.length-1;i>=0;i--){ if(arr[i]!==null && arr[i]!==undefined) return {v:arr[i], i}; } return {v:null, i:-1}; }
+function chg(arr,unit=''){
+  const cur = lastValid(arr);
+  if(cur.v===null) return {s:'자료없음', c:'neu'};
+  const prev = lastValid(arr.slice(0, cur.i));
+  if(prev.v===null) return {s:'전년 비교불가', c:'neu'};
+  const d = cur.v - prev.v;
+  const a=Math.abs(d).toFixed(2).replace(/\.?0+$/,'');
+  return d>0?{s:'전년대비 ▲ '+a+unit,c:'up'}:d<0?{s:'전년대비 ▼ '+a+unit,c:'down'}:{s:'전년대비 변동없음',c:'neu'};
+}
+function kpi(id,val,arr,unit=''){
+  const e=document.getElementById(id),c=document.getElementById(id+'-c');
+  const hasVal = !(val===null || val===undefined || (typeof val==='string' && val.includes('null')));
+  if(e){ e.textContent = hasVal ? val : '자료없음'; e.className = e.className.replace(' na','') + (hasVal?'':' na'); }
+  if(c&&arr){const r=chg(arr,unit);c.textContent=r.s;c.className='kpi-change '+r.c;}
+}
+function kpiSmart(id, arr, unit='', transform){
+  const lv = lastValid(arr);
+  if(lv.v===null){ kpi(id, null, arr, unit); return; }
+  const v = transform ? transform(lv.v) : lv.v;
+  kpi(id, (typeof v==='number'?v.toLocaleString(undefined,{maximumFractionDigits:4}):v)+unit, arr, unit);
+}
+function mkChart(id,cfg){ if(ch[id])ch[id].destroy(); const el=document.getElementById(id); if(el)ch[id]=new Chart(el,cfg); }
+function baseOpts(yCb,y2Cb){
+  const o={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+    scales:{x:{ticks:{font:{size:11.5}},grid:{display:false}},y:{ticks:{font:{size:11},callback:yCb},grid:{color:'rgba(0,0,0,0.06)'},position:'left'}}};
+  if(y2Cb)o.scales.y2={ticks:{font:{size:11},callback:y2Cb},grid:{display:false},position:'right'};
+  return o;
+}
+const BAR=(data,bg,ya='y')=>({label:'',data,backgroundColor:bg,borderRadius:4,yAxisID:ya,order:2});
+const LINE=(data,bc,da=[5,3],ya='y2')=>({label:'',data,type:'line',borderColor:bc,backgroundColor:'transparent',pointRadius:4,pointBackgroundColor:bc,borderDash:da,borderWidth:2,yAxisID:ya,order:1,spanGaps:true});
+
+function mkRows(id,cols,years){
+  const tb=document.getElementById(id);if(!tb)return;
+  tb.innerHTML=years.map((y,i)=>{
+    const hi=i===years.length-1?' class="hi"':'';
+    return`<tr><td${hi}>${y}</td>${cols.map(c=>{
+      const v = Array.isArray(c)?c[i]:c;
+      const cellCls = (v===null||v===undefined) ? ' class="na-cell"' : '';
+      return `<td${hi}${cellCls}>${fmt(v)}</td>`;
+    }).join('')}</tr>`;
+  }).join('');
+}
+
+function mkCmpCards(selectedYear){
+  const el = document.getElementById('cmp-cards');
+  const tb = document.getElementById('tb-cmp');
+  const yIdx = CMP_YEARS.indexOf(String(selectedYear));
+
+  // 선택된 연도의 값만 정확히 사용 (다른 연도로 거슬러 올라가지 않음)
+  const rows = CMP.map(it=>{
+    const ours = yIdx>=0 ? (it.sin[yIdx] ?? null) : null;
+    const avg  = yIdx>=0 ? (it.avg[yIdx] ?? null) : null;
+    const n    = yIdx>=0 ? (it.n[yIdx] ?? null) : null;
+    return {label:it.label, lo:it.lo, ours, avg, n};
+  });
+
+  const yrLabel = yIdx>=0 ? CMP_YEARS[yIdx] : '—';
+  const titleEl = document.getElementById('cmp-tbl-title');
+  if(titleEl) titleEl.textContent = `경쟁대학 비교표 (${yrLabel}년 기준)`;
+
+  const maxes = rows.map(it=>{
+    const o = it.ours ?? 0, a = it.avg ?? 0;
+    return Math.max(o,a)*1.15 || 1;
+  });
+
+  el.innerHTML = rows.map((it,i)=>{
+    if(it.ours===null && it.avg===null){
+      return `<div class="cmp-card"><div class="cc-label">${it.label}</div><div style="color:#c1c7d2;font-size:13px;">${yrLabel}년 자료없음</div></div>`;
+    }
+    const mx = maxes[i];
+    const op = it.ours!==null ? (it.ours/mx*100).toFixed(0) : 0;
+    const ap = it.avg!==null ? (it.avg/mx*100).toFixed(0) : 0;
+    const diff = (it.ours!==null && it.avg!==null) ? it.ours - it.avg : null;
+    const good = diff===null ? null : (it.lo ? (diff<0) : (diff>0));
+    const dc = good===null ? '#9ca3af' : (good?'#059669':'#dc2626');
+    const diffTxt = diff===null ? '비교불가' : diff>0 ? `본교가 +${fmt(Math.abs(diff))} ${it.lo?'(불리)':'(유리)'}` : diff<0 ? `본교가 -${fmt(Math.abs(diff))} ${it.lo?'(유리)':'(불리)'}` : '동일';
+    return `<div class="cmp-card">
+      <div class="cc-label">${it.label}</div>
+      <div class="cc-row"><span class="cc-name">본교</span><div class="cc-bar-wrap"><div class="cc-bar bar-ours" style="width:${op}%"></div></div><span class="cc-val val-ours">${fmt(it.ours)}</span></div>
+      <div class="cc-row"><span class="cc-name">평균</span><div class="cc-bar-wrap"><div class="cc-bar bar-avg" style="width:${ap}%"></div></div><span class="cc-val val-avg">${fmt(it.avg)}</span></div>
+      <div class="diff-line" style="color:${dc};">${diffTxt} <span style="color:#9ca3af;font-weight:400;">${it.n?`(평균 ${it.n}개교 기준)`:''}</span></div>
+    </div>`;
+  }).join('');
+
+  tb.innerHTML = rows.map(it=>{
+    const diff = (it.ours!==null && it.avg!==null) ? it.ours - it.avg : null;
+    const good = diff===null ? null : (it.lo ? (diff<0) : (diff>0));
+    const dc = good===null ? 'color:#9ca3af' : (good?'color:#059669':'color:#dc2626');
+    return `<tr><td style="text-align:left;padding-left:10px;">${it.label}</td>
+      <td style="color:#1a3fa0;font-weight:700;">${fmt(it.ours)}</td>
+      <td style="color:#6b7280;">${fmt(it.avg)}</td>
+      <td style="${dc};font-weight:600;">${diff===null?'—':(diff>0?'+':'')+fmt(diff)}</td>
+      <td style="color:#9ca3af;">${it.n?it.n+'개교':'—'}</td></tr>`;
+  }).join('');
+}
+
+// ── 메인 렌더 ──
+let FULL_DATA = null;
+let CURRENT_TAB = '종합';
+
+const TAB_KEY_FIELDS = {
+  '종합'  : ['재학생수','신입생충원율','졸업생취업률','교원확보율재학','1인당학생수','국내논문','국제논문','저역서'],
+  '학생'  : ['신입생충원율','재학생충원율','재학생수','중도탈락률','신입생중도탈락률','유학생수','졸업생취업률','유지취업률'],
+  '교원'  : ['교원확보율재학','교원확보율정원','1인당학생수','전임교원수'],
+  '연구'  : ['국내논문','국제논문','저역서','교내연구비','교외연구비','캡스톤'],
+  '재정'  : ['등록금수입','전입금','기부금','국고보조금','교육외수입','보수','관리운영비','연구학생경비','교육외비용'],
+  '경쟁'  : ['신입생충원율','교원확보율재학','졸업생취업률']
+};
+
+// 대시보드 표시 시작 연도 (이전 연도는 데이터가 부족해 화면에서 제외)
+const MIN_YEAR = '2023';
+
+function latestValidIndex(fields){
+  const fullYrs = FULL_DATA.years;
+  for(let i=fullYrs.length-1;i>=0;i--){
+    const hasAny = fields.some(f => FULL_DATA[f] && FULL_DATA[f][i] !== null && FULL_DATA[f][i] !== undefined);
+    if(hasAny) return i;
+  }
+  return fullYrs.length-1;
+}
+
+function render(d, selectedYear, tabName){
+  if(!FULL_DATA) FULL_DATA = d;
+  if(tabName) CURRENT_TAB = tabName;
+  const fullYrs = FULL_DATA.years;
+  const fields = TAB_KEY_FIELDS[CURRENT_TAB] || TAB_KEY_FIELDS['종합'];
+  const latestIdx = latestValidIndex(fields);
+  const latestYear = fullYrs[latestIdx];
+
+  // 기본은 2023년부터 표시. 단, 이 탭의 최신 유효 연도가 2025년이 아니면
+  // (즉 2025년 자료가 없는 탭이면) 2022년까지 포함해 3개년을 채움
+  const minYearIdx = fullYrs.indexOf(MIN_YEAR);
+  const baseFloorIdx = minYearIdx >= 0 ? minYearIdx : 0;
+  const floorIdx = (latestYear !== '2025') ? Math.max(0, baseFloorIdx - 1) : baseFloorIdx;
+
+  const sel = document.getElementById('yearSelect');
+  const startIdx = Math.max(floorIdx, latestIdx-2);
+  const recentYears = fullYrs.slice(startIdx, latestIdx+1);
+  if(sel){
+    const prevVal = sel.value;
+    sel.innerHTML = recentYears.map(y => `<option value="${y}">연도 ${y}</option>`).join('');
+    if(selectedYear && recentYears.includes(String(selectedYear))) sel.value = selectedYear;
+    else if(recentYears.includes(prevVal)) sel.value = prevVal;
+    else { sel.value = recentYears[recentYears.length-1]; selectedYear = sel.value; }
+  }
+  if(!selectedYear) selectedYear = fullYrs[latestIdx];
+
+  const cutIdx = fullYrs.indexOf(String(selectedYear));
+  const endIdx = cutIdx >= 0 ? cutIdx : latestIdx;
+  const L = {};
+  Object.keys(FULL_DATA).forEach(k=>{ L[k] = Array.isArray(FULL_DATA[k]) ? FULL_DATA[k].slice(floorIdx, endIdx+1) : FULL_DATA[k]; });
+  const yrs = L.years;
+
+  document.getElementById('lastUpdate').textContent='최종갱신: '+new Date().toLocaleDateString('ko-KR');
+
+  // ── 종합 KPI ──
+  kpiSmart('k-재학생수', L.재학생수,'명', v=>v.toLocaleString());
+  kpiSmart('k-신입생충원율', L.신입생충원율,'%');
+  kpiSmart('k-취업률', L.졸업생취업률,'%');
+  kpiSmart('k-교원확보율', L.교원확보율재학,'%');
+  kpiSmart('k-1인당학생수', L['1인당학생수'],'명');
+  kpiSmart('k-국내논문', L.국내논문,'건');
+  kpiSmart('k-국제논문', L.국제논문,'건');
+  kpiSmart('k-저역서', L.저역서,'건');
+
+  // ── 학생 KPI ──
+  kpiSmart('s-신입생충원율', L.신입생충원율,'%');
+  kpiSmart('s-재학생충원율', L.재학생충원율,'%');
+  kpiSmart('s-중도탈락', L.중도탈락률,'%');
+  kpiSmart('s-신입생중도탈락', L.신입생중도탈락률,'%');
+  kpiSmart('s-유학생수', L.유학생수,'명');
+  kpiSmart('s-취업률', L.졸업생취업률,'%');
+  kpiSmart('s-유지취업률', L.유지취업률,'%');
+  kpiSmart('s-재학생수', L.재학생수,'명');
+
+  // ── 교원 KPI ──
+  kpiSmart('f-확보율재학', L.교원확보율재학,'%');
+  kpiSmart('f-확보율정원', L.교원확보율정원,'%');
+  kpiSmart('f-1인당학생', L['1인당학생수'],'명');
+  kpiSmart('f-교원수', L.전임교원수,'명');
+
+  // ── 연구 KPI ──
+  kpiSmart('r-국내논문', L.국내논문,'건');
+  kpiSmart('r-국제논문', L.국제논문,'건');
+  kpiSmart('r-저역서', L.저역서,'건');
+  kpiSmart('r-캡스톤', L.캡스톤,'원');
+  kpiSmart('r-교내연구비', L.교내연구비,'천원');
+  kpiSmart('r-교외연구비', L.교외연구비,'천원');
+
+  // ── 재정 KPI ──
+  kpiSmart('fi-등록금', L.등록금수입,'억원');
+  kpiSmart('fi-전입금', L.전입금,'억원');
+  kpiSmart('fi-기부금', L.기부금,'억원');
+  kpiSmart('fi-국고', L.국고보조금,'억원');
+  kpiSmart('fi-교육외수입', L.교육외수입,'억원');
+  kpiSmart('fe-보수', L.보수,'억원');
+  kpiSmart('fe-관리', L.관리운영비,'억원');
+  kpiSmart('fe-연구경비', L.연구학생경비,'억원');
+  kpiSmart('fe-교육외비용', L.교육외비용,'억원');
+
+  // ── 차트 ──
+  mkChart('c-학생추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.재학생수,'#93c5fd'),LINE(L.신입생충원율,'#2563eb')]},options:baseOpts(v=>v.toLocaleString()+'명',v=>v+'%')});
+  mkChart('c-교원추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.전임교원수,'#93c5fd'),LINE(L.국내논문,'#10b981'),LINE(L.국제논문,'#f59e0b',[3,2])]},options:baseOpts(v=>v+'명',v=>v.toFixed(2)+'건')});
+  mkChart('c-충원율추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.신입생충원율,'#93c5fd'),LINE(L.재학생충원율,'#2563eb')]},options:baseOpts(v=>v+'%')});
+  mkChart('c-취업률추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.졸업생취업률,'#6ee7b7'),LINE(L.유지취업률,'#059669')]},options:baseOpts(v=>v+'%')});
+  mkChart('c-중도탈락추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.중도탈락률,'#fca5a5'),LINE(L.신입생중도탈락률,'#dc2626')]},options:baseOpts(v=>v+'%')});
+  mkChart('c-유학생추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.유학생수,'#c4b5fd','y')]},options:baseOpts(v=>v+'명')});
+  mkChart('c-교원확보율추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.교원확보율재학,'#93c5fd'),LINE(L.교원확보율정원,'#2563eb')]},options:baseOpts(v=>v+'%')});
+  mkChart('c-교원수추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.전임교원수,'#c4b5fd'),LINE(L['1인당학생수'],'#7c3aed')]},options:baseOpts(v=>v+'명',v=>v+'명')});
+  mkChart('c-논문추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.국내논문,'#93c5fd'),LINE(L.국제논문,'#2563eb'),LINE(L.저역서,'#10b981',[3,2])]},options:baseOpts(v=>v.toFixed(2)+'건')});
+  mkChart('c-연구비추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.교내연구비,'#c4b5fd'),LINE(L.교외연구비,'#7c3aed')]},options:baseOpts(v=>v+'천원',v=>v+'천원')});
+  mkChart('c-수입추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.등록금수입,'#93c5fd'),LINE(L.국고보조금,'#2563eb')]},options:baseOpts(v=>v+'억')});
+  mkChart('c-지출추이',{type:'bar',data:{labels:yrs,datasets:[BAR(L.보수,'#6ee7b7'),LINE(L.연구학생경비,'#059669')]},options:baseOpts(v=>v+'억')});
+
+  // ── 테이블 ──
+  mkRows('tb-종합',[L.재학생수,L.신입생충원율,L.졸업생취업률,L.교원확보율재학,L['1인당학생수'],L.국내논문,L.국제논문,L.저역서],yrs);
+  mkRows('tb-학생',[L.신입생충원율,L.재학생충원율,L.재학생수,L.중도탈락률,L.신입생중도탈락률,L.유학생수,L.졸업생취업률,L.유지취업률],yrs);
+  mkRows('tb-교원',[L.교원확보율재학,L.교원확보율정원,L.전임교원수,L['1인당학생수']],yrs);
+  mkRows('tb-연구',[L.국내논문,L.국제논문,L.저역서,L.교내연구비,L.교외연구비,L.캡스톤],yrs);
+  mkRows('tb-수입',[L.등록금수입,L.전입금,L.기부금,L.국고보조금,L.교육외수입],yrs);
+  mkRows('tb-지출',[L.보수,L.관리운영비,L.연구학생경비,L.교육외비용],yrs);
+
+  mkCmpCards(selectedYear);
+}
+
+// ── 탭 전환 ──
+function switchTab(name,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.db-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  el.classList.add('active');
+  if(FULL_DATA) render(FULL_DATA, null, name);
+}
+function switchSub(name,el){
+  const panel=el.closest('.panel');
+  panel.querySelectorAll('.sub-panel').forEach(p=>p.classList.remove('active'));
+  el.closest('.sub-tabs').querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sub-'+name).classList.add('active');
+  el.classList.add('active');
+}
+function onYearChange(year){ if(!FULL_DATA) return; render(FULL_DATA, year, CURRENT_TAB); }
+
+// ── 안내 메모 접기/펼치기 ──
+function toggleNotice(){
+  const content = document.getElementById('noticeContent');
+  const icon = document.getElementById('noticeIcon');
+  content.classList.toggle('open');
+  icon.classList.toggle('open');
+}
+
+// ── 구글 시트 로드 ──
+async function loadSheet(){
+  const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+  try{
+    const res=await fetch(url);
+    const txt=await res.text();
+    const json=JSON.parse(txt.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);/)[1]);
+    const cols=json.table.cols.map(c=>c.label);
+    const rows=json.table.rows;
+    const mapped={years:[]};
+    rows.forEach(r=>{
+      const obj={};
+      r.c.forEach((cell,i)=>{obj[cols[i]]=cell?cell.v:null;});
+      mapped.years.push(String(obj['연도']));
+      Object.keys(obj).forEach(k=>{ if(k!=='연도'){ if(!mapped[k]) mapped[k]=[]; mapped[k].push(obj[k]===''?null:Number(obj[k])); } });
+    });
+    return mapped;
+  }catch(e){ return null; }
+}
+
+async function init(){
+  const overlay=document.getElementById('loadingOverlay');
+  const statusText=document.getElementById('statusText');
+  if(SHEET_ID==='YOUR_GOOGLE_SHEET_ID'){
+    render(D, null, '종합');
+    overlay.style.display='none';
+  }else{
+    const data=await loadSheet();
+    if(data){
+      render(data, null, '종합');
+      statusText.textContent='✅ 구글 시트 데이터 연동 완료';
+    }else{
+      render(D, null, '종합');
+      statusText.textContent='⚠ 구글 시트 연결 실패 — 검증된 기본 데이터로 표시 중';
+    }
+    overlay.style.display='none';
+  }
+}
+init();
+</script>
+</body>
+</html>
