@@ -1,5 +1,7 @@
 ## Hi there 👋
-
+신성대학교 공시자료 종합대시보드입니다. 
+최근 3년 자료를 조회하도록 되어 있습니다. 
+경쟁대학 비교 데이터는 신성대학교와, 대전/충남북 지역 전문대학 14개 학교의 평균과 비교한 내용입니다. 
 <!--
 **shinsungir/shinsungir** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
